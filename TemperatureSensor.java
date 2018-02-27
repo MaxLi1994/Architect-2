@@ -40,6 +40,7 @@ class TemperatureSensor
 		float DriftValue;				// The amount of temperature gained or lost
 		int	Delay = 2500;				// The loop delay (2.5 seconds)
 		boolean Done = false;			// Loop termination flag
+		FaultTolerantParticipant ftParticipant; // fault tolerant capability
 
 		/////////////////////////////////////////////////////////////////////////////////
 		// Get the IP address of the message manager
@@ -95,6 +96,17 @@ class TemperatureSensor
 
 		if (em != null)
 		{
+
+			/********************************************************************
+			 ** Here we set up the fault tolerant participant
+			 *********************************************************************/
+			ftParticipant = new FaultTolerantParticipant(ParticipantType.TEMPERATURE_SENSOR, ParticipantUtility.sendMessageWrapper(em));
+			try {
+				ftParticipant.start();
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("fault tolerance is not ready.");
+			}
 
 			// We create a message window. Note that we place this panel about 1/2 across
 			// and 1/3 down the screen

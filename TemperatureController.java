@@ -45,6 +45,7 @@ class TemperatureController
 		boolean ChillerState = false;		// Chiller state: false == off, true == on
 		int	Delay = 2500;					// The loop delay (2.5 seconds)
 		boolean Done = false;				// Loop termination flag
+		FaultTolerantParticipant ftParticipant; // fault tolerant capability
 
 		/////////////////////////////////////////////////////////////////////////////////
 		// Get the IP address of the message manager
@@ -100,6 +101,17 @@ class TemperatureController
 		if (em != null)
 		{
 			System.out.println("Registered with the message manager." );
+
+			/********************************************************************
+			 ** Here we set up the fault tolerant participant
+			 *********************************************************************/
+			ftParticipant = new FaultTolerantParticipant(ParticipantType.TEMPERATURE_CONTROLLER, ParticipantUtility.sendMessageWrapper(em));
+			try {
+				ftParticipant.start();
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("fault tolerance is not ready.");
+			}
 
 			/* Now we create the temperature control status and message panel
 			** We put this panel about 1/3 the way down the terminal, aligned to the left

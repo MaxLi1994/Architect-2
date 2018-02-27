@@ -1,374 +1,352 @@
 /******************************************************************************************************************
-* File:HumiditySensor.java
-* Course: 17655
-* Project: Assignment A2
-* Copyright: Copyright (c) 2009 Carnegie Mellon University
-* Versions:
-*	1.0 March 2009 - Initial rewrite of original assignment 2 (ajl).
-*
-* Description:
-*
-* This class simulates a humidity sensor. It polls the message manager for messages corresponding to changes in state
-* of the humidifier or dehumidifier and reacts to them by trending the relative humidity up or down. The current
-* relative humidity is posted to the message manager.
-*
-* Parameters: IP address of the message manager (on command line). If blank, it is assumed that the message manager is
-* on the local machine.
-*
-* Internal Methods:
-*	float GetRandomNumber()
-*	boolean CoinToss()
-*   void PostHumidity(MessageManagerInterface ei, float humidity )
-*
-******************************************************************************************************************/
+ * File:HumiditySensor.java
+ * Course: 17655
+ * Project: Assignment A2
+ * Copyright: Copyright (c) 2009 Carnegie Mellon University
+ * Versions:
+ *	1.0 March 2009 - Initial rewrite of original assignment 2 (ajl).
+ *
+ * Description:
+ *
+ * This class simulates a humidity sensor. It polls the message manager for messages corresponding to changes in state
+ * of the humidifier or dehumidifier and reacts to them by trending the relative humidity up or down. The current
+ * relative humidity is posted to the message manager.
+ *
+ * Parameters: IP address of the message manager (on command line). If blank, it is assumed that the message manager is
+ * on the local machine.
+ *
+ * Internal Methods:
+ *	float GetRandomNumber()
+ *	boolean CoinToss()
+ *   void PostHumidity(MessageManagerInterface ei, float humidity )
+ *
+ ******************************************************************************************************************/
+
 import InstrumentationPackage.*;
 import MessagePackage.*;
+
 import java.util.*;
 
-class HumiditySensor
-{
+class HumiditySensor {
 
-	public static void main(String args[])
-	{
-		String MsgMgrIP;					// Message Manager IP address
-		Message Msg = null;					// Message object
-		MessageQueue eq = null;				// Message Queue
-		int MsgId = 0;						// User specified message ID
-		MessageManagerInterface em = null;	// Interface object to the message manager
-		boolean HumidifierState = false;	// Humidifier state: false == off, true == on
-		boolean DehumidifierState = false;	// Dehumidifier state: false == off, true == on
-		float RelativeHumidity;				// Current simulated ambient room humidity
-		float DriftValue;					// The amount of humidity gained or lost
-		int	Delay = 2500;					// The loop delay (2.5 seconds)
-		boolean Done = false;				// Loop termination flag
+    public static void main(String args[]) {
+        String MsgMgrIP;                    // Message Manager IP address
+        Message Msg = null;                    // Message object
+        MessageQueue eq = null;                // Message Queue
+        int MsgId = 0;                        // User specified message ID
+        MessageManagerInterface em = null;    // Interface object to the message manager
+        boolean HumidifierState = false;    // Humidifier state: false == off, true == on
+        boolean DehumidifierState = false;    // Dehumidifier state: false == off, true == on
+        float RelativeHumidity;                // Current simulated ambient room humidity
+        float DriftValue;                    // The amount of humidity gained or lost
+        int Delay = 2500;                    // The loop delay (2.5 seconds)
+        boolean Done = false;                // Loop termination flag
+        FaultTolerantParticipant ftParticipant; // fault tolerant capability
 
+        /////////////////////////////////////////////////////////////////////////////////
+        // Get the IP address of the message manager
+        /////////////////////////////////////////////////////////////////////////////////
 
+        if (args.length == 0) {
+            // message manager is on the local system
 
-		/////////////////////////////////////////////////////////////////////////////////
-		// Get the IP address of the message manager
-		/////////////////////////////////////////////////////////////////////////////////
+            System.out.println("\n\nAttempting to register on the local machine...");
 
- 		if ( args.length == 0 )
- 		{
-			// message manager is on the local system
+            try {
+                // Here we create an message manager interface object. This assumes
+                // that the message manager is on the local machine
 
-			System.out.println("\n\nAttempting to register on the local machine..." );
+                em = new MessageManagerInterface();
+            } catch (Exception e) {
+                System.out.println("Error instantiating message manager interface: " + e);
 
-			try
-			{
-				// Here we create an message manager interface object. This assumes
-				// that the message manager is on the local machine
+            } // catch
 
-				em = new MessageManagerInterface();
-			}
+        } else {
 
-			catch (Exception e)
-			{
-				System.out.println("Error instantiating message manager interface: " + e);
+            // message manager is not on the local system
 
-			} // catch
+            MsgMgrIP = args[0];
 
-		} else {
+            System.out.println("\n\nAttempting to register on the machine:: " + MsgMgrIP);
 
-			// message manager is not on the local system
+            try {
+                // Here we create an message manager interface object. This assumes
+                // that the message manager is NOT on the local machine
 
-			MsgMgrIP = args[0];
+                em = new MessageManagerInterface(MsgMgrIP);
+            } catch (Exception e) {
+                System.out.println("Error instantiating message manager interface: " + e);
 
-			System.out.println("\n\nAttempting to register on the machine:: " + MsgMgrIP );
+            } // catch
 
-			try
-			{
-				// Here we create an message manager interface object. This assumes
-				// that the message manager is NOT on the local machine
+        } // if
 
-				em = new MessageManagerInterface( MsgMgrIP );
-			}
+        // Here we check to see if registration worked. If ef is null then the
+        // message manager interface was not properly created.
 
-			catch (Exception e)
-			{
-				System.out.println("Error instantiating message manager interface: " + e);
+        if (em != null) {
 
-			} // catch
+            /********************************************************************
+             ** Here we set up the fault tolerant participant
+             *********************************************************************/
+            ftParticipant = new FaultTolerantParticipant(ParticipantType.HUMIDITY_SENSOR, ParticipantUtility.sendMessageWrapper(em));
+            try {
+                ftParticipant.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.out.println("fault tolerance is not ready.");
+            }
 
-		} // if
+            // We create a message window. Note that we place this panel about 1/2 across
+            // and 2/3s down the screen
 
-		// Here we check to see if registration worked. If ef is null then the
-		// message manager interface was not properly created.
+            float WinPosX = 0.5f;    //This is the X position of the message window in terms
+            //of a percentage of the screen height
+            float WinPosY = 0.60f;    //This is the Y position of the message window in terms
+            //of a percentage of the screen height
 
-		if (em != null)
-		{
+            MessageWindow mw = new MessageWindow("Humidity Sensor", WinPosX, WinPosY);
 
-			// We create a message window. Note that we place this panel about 1/2 across
-			// and 2/3s down the screen
+            mw.WriteMessage("Registered with the message manager.");
 
-			float WinPosX = 0.5f; 	//This is the X position of the message window in terms
-									//of a percentage of the screen height
-			float WinPosY = 0.60f;	//This is the Y position of the message window in terms
-								 	//of a percentage of the screen height
+            try {
+                mw.WriteMessage("   Participant id: " + em.GetMyId());
+                mw.WriteMessage("   Registration Time: " + em.GetRegistrationTime());
 
-			MessageWindow mw = new MessageWindow("Humidity Sensor", WinPosX, WinPosY);
+            } // try
 
-			mw.WriteMessage("Registered with the message manager." );
+            catch (Exception e) {
+                mw.WriteMessage("Error:: " + e);
 
-	    	try
-	    	{
-				mw.WriteMessage("   Participant id: " + em.GetMyId() );
-				mw.WriteMessage("   Registration Time: " + em.GetRegistrationTime() );
+            } // catch
 
-			} // try
+            mw.WriteMessage("\nInitializing Humidity Simulation::");
 
-	    	catch (Exception e)
-			{
-				mw.WriteMessage("Error:: " + e);
+            RelativeHumidity = GetRandomNumber() * (float) 100.00;
 
-			} // catch
+            if (CoinToss()) {
+                DriftValue = GetRandomNumber() * (float) -1.0;
 
-			mw.WriteMessage("\nInitializing Humidity Simulation::" );
+            } else {
 
-			RelativeHumidity = GetRandomNumber() * (float) 100.00;
+                DriftValue = GetRandomNumber();
 
-			if ( CoinToss() )
-			{
-				DriftValue = GetRandomNumber() * (float) -1.0;
+            } // if
 
-			} else {
+            mw.WriteMessage("   Initial Humidity Set:: " + RelativeHumidity);
+            // mw.WriteMessage("   Drift Value Set:: " + DriftValue ); // Used to debug the random drift values
 
-				DriftValue = GetRandomNumber();
+            /********************************************************************
+             ** Here we start the main simulation loop
+             *********************************************************************/
 
-			} // if
+            mw.WriteMessage("Beginning Simulation... ");
 
-			mw.WriteMessage("   Initial Humidity Set:: " + RelativeHumidity );
-			// mw.WriteMessage("   Drift Value Set:: " + DriftValue ); // Used to debug the random drift values
 
-			/********************************************************************
-			** Here we start the main simulation loop
-			*********************************************************************/
+            while (!Done) {
+                // Post the current relative humidity
 
-			mw.WriteMessage("Beginning Simulation... ");
+                PostHumidity(em, RelativeHumidity);
 
+                mw.WriteMessage("Current Relative Humidity:: " + RelativeHumidity + "%");
 
-			while ( !Done )
-			{
-				// Post the current relative humidity
+                // Get the message queue
 
-				PostHumidity( em, RelativeHumidity );
+                try {
+                    eq = em.GetMessageQueue();
 
-				mw.WriteMessage("Current Relative Humidity:: " + RelativeHumidity + "%");
+                } // try
 
-				// Get the message queue
+                catch (Exception e) {
+                    mw.WriteMessage("Error getting message queue::" + e);
 
-				try
-				{
-					eq = em.GetMessageQueue();
+                } // catch
 
-				} // try
+                // If there are messages in the queue, we read through them.
+                // We are looking for MessageIDs = -4, this means the the humidify or
+                // dehumidifier has been turned on/off. Note that we get all the messages
+                // from the queue at once... there is a 2.5 second delay between samples,..
+                // so the assumption is that there should only be a message at most.
+                // If there are more, it is the last message that will effect the
+                // output of the humidity as it would in reality.
 
-				catch( Exception e )
-				{
-					mw.WriteMessage("Error getting message queue::" + e );
+                int qlen = eq.GetSize();
 
-				} // catch
+                for (int i = 0; i < qlen; i++) {
+                    Msg = eq.GetMessage();
 
-				// If there are messages in the queue, we read through them.
-				// We are looking for MessageIDs = -4, this means the the humidify or
-				// dehumidifier has been turned on/off. Note that we get all the messages
-				// from the queue at once... there is a 2.5 second delay between samples,..
-				// so the assumption is that there should only be a message at most.
-				// If there are more, it is the last message that will effect the
-				// output of the humidity as it would in reality.
+                    if (Msg.GetMessageId() == -4) {
+                        if (Msg.GetMessage().equalsIgnoreCase("H1")) // humidifier on
+                        {
+                            HumidifierState = true;
 
-				int qlen = eq.GetSize();
+                        } // if
 
-				for ( int i = 0; i < qlen; i++ )
-				{
-					Msg = eq.GetMessage();
+                        if (Msg.GetMessage().equalsIgnoreCase("H0")) // humidifier off
+                        {
+                            HumidifierState = false;
 
-					if ( Msg.GetMessageId() == -4 )
-					{
-						if (Msg.GetMessage().equalsIgnoreCase("H1")) // humidifier on
-						{
-							HumidifierState = true;
+                        } // if
 
-						} // if
+                        if (Msg.GetMessage().equalsIgnoreCase("D1")) // dehumidifier on
+                        {
+                            DehumidifierState = true;
 
-						if (Msg.GetMessage().equalsIgnoreCase("H0")) // humidifier off
-						{
-							HumidifierState = false;
+                        } // if
 
-						} // if
+                        if (Msg.GetMessage().equalsIgnoreCase("D0")) // dehumidifier off
+                        {
+                            DehumidifierState = false;
 
-						if (Msg.GetMessage().equalsIgnoreCase("D1")) // dehumidifier on
-						{
-							DehumidifierState = true;
+                        } // if
 
-						} // if
+                    } // if
 
-						if (Msg.GetMessage().equalsIgnoreCase("D0")) // dehumidifier off
-						{
-							DehumidifierState = false;
+                    // If the message ID == 99 then this is a signal that the simulation
+                    // is to end. At this point, the loop termination flag is set to
+                    // true and this process unregisters from the message manager.
 
-						} // if
+                    if (Msg.GetMessageId() == 99) {
+                        Done = true;
 
-					} // if
+                        try {
+                            em.UnRegister();
 
-					// If the message ID == 99 then this is a signal that the simulation
-					// is to end. At this point, the loop termination flag is set to
-					// true and this process unregisters from the message manager.
+                        } // try
 
-					if ( Msg.GetMessageId() == 99 )
-					{
-						Done = true;
+                        catch (Exception e) {
+                            mw.WriteMessage("Error unregistering: " + e);
 
-						try
-						{
-							em.UnRegister();
+                        } // catch
 
-				    	} // try
+                        mw.WriteMessage("\n\nSimulation Stopped. \n");
 
-				    	catch (Exception e)
-				    	{
-							mw.WriteMessage("Error unregistering: " + e);
+                    } // if
 
-				    	} // catch
+                } // for
 
-				    	mw.WriteMessage("\n\nSimulation Stopped. \n");
+                // Now we trend the relative humidity according to the status of the
+                // humidifier/dehumidifier controller.
 
-					} // if
+                if (HumidifierState) {
+                    RelativeHumidity += GetRandomNumber();
 
-				} // for
+                } // if humidifier is on
 
-				// Now we trend the relative humidity according to the status of the
-				// humidifier/dehumidifier controller.
+                if (!HumidifierState && !DehumidifierState) {
+                    RelativeHumidity += DriftValue;
 
-				if (HumidifierState)
-				{
-					RelativeHumidity += GetRandomNumber();
+                } // if both the humidifier and dehumidifier are off
 
-				} // if humidifier is on
+                if (DehumidifierState) {
+                    RelativeHumidity -= GetRandomNumber();
 
-				if (!HumidifierState && !DehumidifierState)
-				{
-					RelativeHumidity += DriftValue;
+                } // if dehumidifier is on
 
-				} // if both the humidifier and dehumidifier are off
+                // Here we wait for a 2.5 seconds before we start the next sample
 
-				if (DehumidifierState)
-				{
-					RelativeHumidity -= GetRandomNumber();
+                try {
+                    Thread.sleep(Delay);
 
-				} // if dehumidifier is on
+                } // try
 
-				// Here we wait for a 2.5 seconds before we start the next sample
+                catch (Exception e) {
+                    mw.WriteMessage("Sleep error:: " + e);
 
-				try
-				{
-					Thread.sleep( Delay );
+                } // catch
 
-				} // try
+            } // while
 
-				catch( Exception e )
-				{
-					mw.WriteMessage("Sleep error:: " + e );
+        } else {
 
-				} // catch
+            System.out.println("Unable to register with the message manager.\n\n");
 
-			} // while
+        } // if
 
-		} else {
+    } // main
 
-			System.out.println("Unable to register with the message manager.\n\n" );
+    /***************************************************************************
+     * CONCRETE METHOD:: GetRandomNumber
+     * Purpose: This method provides the simulation with random floating point
+     *		   humidity values between 0.1 and 0.9.
+     *
+     * Arguments: None.
+     *
+     * Returns: float
+     *
+     * Exceptions: None
+     *
+     ***************************************************************************/
 
-		} // if
+    static private float GetRandomNumber() {
+        Random r = new Random();
+        Float Val;
 
-	} // main
+        Val = Float.valueOf((float) -1.0);
 
-	/***************************************************************************
-	* CONCRETE METHOD:: GetRandomNumber
-	* Purpose: This method provides the simulation with random floating point
-	*		   humidity values between 0.1 and 0.9.
-	*
-	* Arguments: None.
-	*
-	* Returns: float
-	*
-	* Exceptions: None
-	*
-	***************************************************************************/
+        while (Val < 0.1) {
+            Val = r.nextFloat();
+        }
 
-	static private float GetRandomNumber()
-	{
-		Random r = new Random();
-		Float Val;
+        return (Val.floatValue());
 
-		Val = Float.valueOf((float)-1.0);
+    } // GetRandomNumber
 
-		while( Val < 0.1 )
-		{
-			Val = r.nextFloat();
-	 	}
+    /***************************************************************************
+     * CONCRETE METHOD:: CoinToss
+     * Purpose: This method provides a random true or false value used for
+     * determining the positiveness or negativeness of the drift value.
+     *
+     * Arguments: None.
+     *
+     * Returns: boolean
+     *
+     * Exceptions: None
+     *
+     ***************************************************************************/
 
-		return( Val.floatValue() );
+    static private boolean CoinToss() {
+        Random r = new Random();
 
-	} // GetRandomNumber
+        return (r.nextBoolean());
 
-	/***************************************************************************
-	* CONCRETE METHOD:: CoinToss
-	* Purpose: This method provides a random true or false value used for
-	* determining the positiveness or negativeness of the drift value.
-	*
-	* Arguments: None.
-	*
-	* Returns: boolean
-	*
-	* Exceptions: None
-	*
-	***************************************************************************/
+    } // CoinToss
 
-	static private boolean CoinToss()
-	{
-		Random r = new Random();
+    /***************************************************************************
+     * CONCRETE METHOD:: PostHumidity
+     * Purpose: This method posts the specified relative humidity value to the
+     * specified message manager. This method assumes an message ID of 2.
+     *
+     * Arguments: MessageManagerInterface ei - this is the messagemanger interface
+     *			 where the message will be posted.
+     *
+     *			 float humidity - this is the humidity value.
+     *
+     * Returns: none
+     *
+     * Exceptions: None
+     *
+     ***************************************************************************/
 
-		return(r.nextBoolean());
+    static private void PostHumidity(MessageManagerInterface ei, float humidity) {
+        // Here we create the message.
 
-	} // CoinToss
+        Message msg = new Message((int) 2, String.valueOf(humidity));
 
-	/***************************************************************************
-	* CONCRETE METHOD:: PostHumidity
-	* Purpose: This method posts the specified relative humidity value to the
-	* specified message manager. This method assumes an message ID of 2.
-	*
-	* Arguments: MessageManagerInterface ei - this is the messagemanger interface
-	*			 where the message will be posted.
-	*
-	*			 float humidity - this is the humidity value.
-	*
-	* Returns: none
-	*
-	* Exceptions: None
-	*
-	***************************************************************************/
+        // Here we send the message to the message manager.
 
-	static private void PostHumidity(MessageManagerInterface ei, float humidity )
-	{
-		// Here we create the message.
+        try {
+            ei.SendMessage(msg);
+            //mw.WriteMessage( "Sent Humidity Message" );
 
-		Message msg = new Message( (int) 2, String.valueOf(humidity) );
+        } // try
 
-		// Here we send the message to the message manager.
+        catch (Exception e) {
+            System.out.println("Error Posting Relative Humidity:: " + e);
 
-		try
-		{
-			ei.SendMessage( msg );
-			//mw.WriteMessage( "Sent Humidity Message" );
+        } // catch
 
-		} // try
-
-		catch (Exception e)
-		{
-			System.out.println( "Error Posting Relative Humidity:: " + e );
-
-		} // catch
-
-	} // PostHumidity
+    } // PostHumidity
 
 } // Humidity Sensor
