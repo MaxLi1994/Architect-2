@@ -7,8 +7,7 @@ import java.util.function.Consumer;
  * This class is in charge of adding fault tolerance capability to participants.
  * It manages all necessary activities for being a fault tolerant participant
  * including:
- * 1. register the participant
- * 2. send heart beats
+ * 1. send heart beats
  */
 public class FaultTolerantParticipant {
 
@@ -33,19 +32,9 @@ public class FaultTolerantParticipant {
      *
      ****************************************************************************/
     public void start() throws Exception {
-        register();
-
         HeartBeat hb = new HeartBeat();
         Thread t = new Thread(hb);
         t.start();
-    }
-
-    /**
-     * Send register message
-     */
-    private void register() {
-        Message registerMsg = new Message(MessageType.FAULT_TOLERANT_PARTICIPANT_REGISTER, this.participantType.toString());
-        this.sendMessage.accept(registerMsg);
     }
 
     /**

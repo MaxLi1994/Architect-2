@@ -197,10 +197,6 @@ class ECSMonitor extends Thread {
 
                     } // if
 
-                    if (Msg.GetMessageId() == MessageType.FAULT_TOLERANT_PARTICIPANT_REGISTER) {
-                        System.out.println("register message received" + Msg.GetMessage());
-                    }
-
                     if(Msg.GetMessageId() == MessageType.FAULT_TOLERANT_PARTICIPANT_HEART_BEAT) {
                         System.out.println("heart beat received" + Msg.GetSenderId());
                     }
