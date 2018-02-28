@@ -66,9 +66,9 @@ public class MessageBus {
             throw new Exception("duplicate IP address found!");
         }
         // detect invalid IP address
-        for(String s: messageManagerIPs) {
-            if(LOCAL_HOST.equals(s)) continue;
-            if(!validateIPAddress(s)) throw new Exception("invalid IP address: " + s);
+        for (String s : messageManagerIPs) {
+            if (LOCAL_HOST.equals(s)) continue;
+            if (!validateIPAddress(s)) throw new Exception("invalid IP address: " + s);
         }
 
         livingChannels = new boolean[messageManagerIPs.length];
@@ -99,10 +99,10 @@ public class MessageBus {
      *
      ****************************************************************************/
     synchronized public void SendMessage(Message evt) throws Exception {
-        defender();
+        if (defender()) return;
 
         for (int i = mainChannelIndex; i < mmiList.size(); i++) {
-            if(!livingChannels[i]) continue;
+            if (!livingChannels[i]) continue;
             try {
                 mmiList.get(i).SendMessage(evt);
             } catch (Exception e) {
@@ -127,7 +127,7 @@ public class MessageBus {
      *
      ****************************************************************************/
     public void UnRegister(long id) throws Exception {
-        defender();
+        if (defender()) return;
 
         mmiList.get(mainChannelIndex).UnRegister(id);
     }
@@ -145,7 +145,7 @@ public class MessageBus {
      *
      ****************************************************************************/
     public void UnRegister() throws Exception {
-        defender();
+        if (defender()) return;
 
         for (int i = mainChannelIndex; i < mmiList.size(); i++) {
             mmiList.get(i).UnRegister();
@@ -165,7 +165,7 @@ public class MessageBus {
      *
      ****************************************************************************/
     public long GetMyId() throws Exception {
-        defender();
+        if(defender()) return -1l;
 
         return mmiList.get(mainChannelIndex).GetMyId();
     }
@@ -189,7 +189,7 @@ public class MessageBus {
      *
      ****************************************************************************/
     public String GetRegistrationTime() throws Exception {
-        defender();
+        if(defender()) return null;
 
         return mmiList.get(mainChannelIndex).GetRegistrationTime();
     }
@@ -207,7 +207,7 @@ public class MessageBus {
      *
      ****************************************************************************/
     public List<Message> getAvailableMessages() throws Exception {
-        defender();
+        if(defender()) return new ArrayList<>();
 
         List<Message> result = new LinkedList<>();
 
@@ -290,13 +290,9 @@ public class MessageBus {
         failSafe(mainChannelIndex);
     }
 
-    private void defender() throws Exception {
-        if (mainChannelIndex >= mmiList.size()) {
-
-            Exception e =  new Exception("message bus is down!");
-            e.printStackTrace();
-            throw e;
-        }
+    private boolean defender() {
+        if (mainChannelIndex >= mmiList.size()) return true;
+        return false;
     }
 
     private boolean validateIPAddress(String ip) {
