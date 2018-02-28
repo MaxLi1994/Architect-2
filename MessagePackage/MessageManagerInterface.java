@@ -150,6 +150,7 @@ public class MessageManagerInterface {
             } // try
 
             catch (Exception e) {
+                e.printStackTrace();
                 throw new RegistrationException("Error registering participant " + ParticipantId);
 
             } // catch
@@ -201,6 +202,7 @@ public class MessageManagerInterface {
             } // try
 
             catch (Exception e) {
+                e.printStackTrace();
                 throw new RegistrationException("Error registering participant " + ParticipantId);
 
             } // catch

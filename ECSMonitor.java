@@ -53,6 +53,10 @@ class ECSMonitor extends Thread {
     } // Constructor
 
     public void run() {
+        mw = new MessageWindow("ECS Monitoring Console", 0, 0);
+
+        ti = new Indicator("TEMP UNK", mw.GetX() + mw.Width(), 0);
+        hi = new Indicator("HUMI UNK", mw.GetX() + mw.Width(), (int) (mw.Height() / 2), 2);
 
         mm.registerForIncomingMessage(this::handleIncomingMessages);
         mm.registerForParticipantReadyEvent(ParticipantType.HUMIDITY_CONTROLLER, this.handleParticipantReadyCreator(ParticipantType.HUMIDITY_CONTROLLER));
@@ -66,15 +70,18 @@ class ECSMonitor extends Thread {
         mm.registerForMessageManagerReadyEvent(() -> mw.WriteMessage("Message bus service is ready"));
         mm.registerForMessageManagerFailureEvent(this.handleMessageManagerFailureCreator());
 
+        try {
+            mm.start(MsgIpAddresses);
+        } catch (Exception e) {
+            mw.WriteMessage(e.getMessage());
+            e.printStackTrace();
+        }
+
         // Now we create the ECS status and message panel
         // Note that we set up two indicators that are initially yellow. This is
         // because we do not know if the temperature/humidity is high/low.
         // This panel is placed in the upper left hand corner and the status
         // indicators are placed directly to the right, one on top of the other
-
-        mw = new MessageWindow("ECS Monitoring Console", 0, 0);
-        ti = new Indicator("TEMP UNK", mw.GetX() + mw.Width(), 0);
-        hi = new Indicator("HUMI UNK", mw.GetX() + mw.Width(), (int) (mw.Height() / 2), 2);
 
         mw.WriteMessage("Registered with the message manager.");
 
@@ -88,14 +95,6 @@ class ECSMonitor extends Thread {
             System.out.println("Error:: " + e);
 
         } // catch
-
-
-        try {
-            mm.start(MsgIpAddresses);
-        } catch (Exception e) {
-            mw.WriteMessage(e.getMessage());
-            e.printStackTrace();
-        }
     } // main
 
 

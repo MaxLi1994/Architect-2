@@ -1,11 +1,9 @@
 import MessagePackage.Message;
 import MessagePackage.MessageManagerInterface;
 import MessagePackage.MessageQueue;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
@@ -69,13 +67,14 @@ public class MessageBus {
         }
         // detect invalid IP address
         for(String s: messageManagerIPs) {
+            if(LOCAL_HOST.equals(s)) continue;
             if(!validateIPAddress(s)) throw new Exception("invalid IP address: " + s);
         }
 
         livingChannels = new boolean[messageManagerIPs.length];
         Arrays.fill(livingChannels, true);
 
-        for (String s : this.messageManagerIPs) {
+        for (String s : messageManagerIPs) {
             MessageManagerInterface mmi;
             if (LOCAL_HOST.equals(s)) {
                 mmi = new MessageManagerInterface();
@@ -292,7 +291,12 @@ public class MessageBus {
     }
 
     private void defender() throws Exception {
-        if (mainChannelIndex >= mmiList.size()) throw new Exception("message bus is down!");
+        if (mainChannelIndex >= mmiList.size()) {
+
+            Exception e =  new Exception("message bus is down!");
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     private boolean validateIPAddress(String ip) {

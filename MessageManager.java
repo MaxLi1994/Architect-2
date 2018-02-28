@@ -48,11 +48,11 @@ public class MessageManager extends UnicastRemoteObject implements RMIMessageMan
 			String MessageManagerIpAddress = LocalHostAddress.getHostAddress();
 
 			MessageManager em = new MessageManager();
-	      	Naming.bind("MessageManager", em);
+	      	Naming.bind("//" + args[0] + ":1099/MessageManager", em);
 
 	     	// Finally we notify the user that the server is ready.
 
-			l.DisplayStatistics( "Server IP address::" + MessageManagerIpAddress + ". Message manager ready." );
+			l.DisplayStatistics( "Server IP address::" + args[0] + ". Message manager ready." );
 
 		} // try
 

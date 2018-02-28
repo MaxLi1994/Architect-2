@@ -6,4 +6,4 @@ echo "Starting RMI Registry and the Message Manager"
 rmiregistry &
 sleep 3
 echo ""
-java MessageManager &
+java -Djava.rmi.server.hostname="$1" MessageManager $1

@@ -1,10 +1,8 @@
 import MessagePackage.Message;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * This class is in charge of fault tolerance management and communicating with MessageBus for ECSMontior
@@ -219,7 +217,7 @@ public class MonitorManager {
             while (it.hasNext()) {
                 ParticipantType type = it.next();
                 Set<Long> set = participantMap.get(type);
-                Long[] setArray = (Long[]) set.toArray();
+                Long[] setArray = set.stream().toArray(Long[]::new);
                 for (int i = 0; i < setArray.length; i++) {
                     long id = setArray[i];
                     if (currentTime - participantLastHeartBeatMap.get(id) > HEART_BEAT_EXPIRE_TIME) { // participant died
