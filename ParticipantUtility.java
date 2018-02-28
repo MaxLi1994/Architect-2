@@ -1,5 +1,4 @@
 import MessagePackage.Message;
-import MessagePackage.MessageManagerInterface;
 
 import java.util.function.Consumer;
 
@@ -14,7 +13,7 @@ public class ParticipantUtility {
      * @param em MessageManagerInterface
      * @return Consumer<Message>
      */
-    public static Consumer<Message> sendMessageWrapper(MessageManagerInterface em) {
+    public static Consumer<Message> sendMessageWrapper(MessageBus em) {
         return (Message msg) -> {
             try {
                 em.SendMessage(msg);

@@ -45,7 +45,7 @@ public class FaultTolerantParticipant {
         @Override
         public void run() {
             while (true) {
-                Message heartBeat = new Message(MessageType.FAULT_TOLERANT_PARTICIPANT_HEART_BEAT);
+                Message heartBeat = new Message(MessageType.FAULT_TOLERANT_PARTICIPANT_HEART_BEAT, participantType.toString());
                 sendMessage.accept(heartBeat);
 
                 try {

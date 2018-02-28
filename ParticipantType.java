@@ -17,4 +17,12 @@ public enum ParticipantType {
     public String toString() {
         return this.text;
     }
+
+    public static ParticipantType toPartipantType(String str) {
+        if(HUMIDITY_CONTROLLER.toString().equals(str)) return HUMIDITY_CONTROLLER;
+        if(HUMIDITY_SENSOR.toString().equals(str)) return HUMIDITY_SENSOR;
+        if(TEMPERATURE_CONTROLLER.toString().equals(str)) return TEMPERATURE_CONTROLLER;
+        if(TEMPERATURE_SENSOR.toString().equals(str)) return TEMPERATURE_SENSOR;
+        return null;
+    }
 }

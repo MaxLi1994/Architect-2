@@ -42,12 +42,11 @@ public class ECSConsole
  		{
 			// message manager is not on the local system
 
-			Monitor = new ECSMonitor( args[0] );
+			Monitor = new ECSMonitor( args );
 
 		} else {
-
-			Monitor = new ECSMonitor();
-
+			System.out.println("\n\nNeed at least one IP address");
+			return;
 		} // if
 
 

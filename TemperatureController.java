@@ -105,7 +105,7 @@ class TemperatureController
 			/********************************************************************
 			 ** Here we set up the fault tolerant participant
 			 *********************************************************************/
-			ftParticipant = new FaultTolerantParticipant(ParticipantType.TEMPERATURE_CONTROLLER, ParticipantUtility.sendMessageWrapper(em));
+			ftParticipant = new FaultTolerantParticipant(ParticipantType.TEMPERATURE_CONTROLLER, ParticipantUtility.sendMessageWrapper(MessageBus.getInstance()));
 			try {
 				ftParticipant.start();
 			} catch (Exception e) {

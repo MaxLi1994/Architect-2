@@ -1,7 +1,12 @@
 import MessagePackage.Message;
+import MessagePackage.MessageManagerInterface;
+import MessagePackage.MessageQueue;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 
-import java.util.List;
+import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Description:
@@ -11,11 +16,21 @@ import java.util.function.Consumer;
  */
 public class MessageBus {
     private static MessageBus instance = null;
+    private static final int MAX_CACHE_MESSAGE_COUNT = 50;
+    private static final String LOCAL_HOST = "localhost";
 
-    private String[] messageManagerIPs;
-
+    private List<String> messageManagerIPs;
+    private List<MessageManagerInterface> mmiList;
+    private List<BiConsumer<String, Boolean>> messageManagerFailureCallbacks;
+    private int mainChannelIndex = 0;
+    private boolean[] livingChannels;
+    private List<List<Message>> cacheMessageList;
 
     private MessageBus() {
+        messageManagerIPs = new ArrayList<>();
+        mmiList = new ArrayList<>();
+        messageManagerFailureCallbacks = new ArrayList<>();
+        cacheMessageList = new ArrayList<>();
     }
 
     /***************************************************************************
@@ -46,8 +61,31 @@ public class MessageBus {
      * Exceptions: register exception
      *
      ****************************************************************************/
-    public void init(String[] messageManagerIPs) {
-        this.messageManagerIPs = messageManagerIPs;
+    public void init(String[] messageManagerIPs) throws Exception {
+        // detect duplicate IP address
+        Set<String> ipSet = new HashSet<>(Arrays.asList(messageManagerIPs));
+        if (ipSet.size() < messageManagerIPs.length) {
+            throw new Exception("duplicate IP address found!");
+        }
+        // detect invalid IP address
+        for(String s: messageManagerIPs) {
+            if(!validateIPAddress(s)) throw new Exception("invalid IP address: " + s);
+        }
+
+        livingChannels = new boolean[messageManagerIPs.length];
+        Arrays.fill(livingChannels, true);
+
+        for (String s : this.messageManagerIPs) {
+            MessageManagerInterface mmi;
+            if (LOCAL_HOST.equals(s)) {
+                mmi = new MessageManagerInterface();
+            } else {
+                mmi = new MessageManagerInterface(s);
+            }
+            this.mmiList.add(mmi);
+            this.messageManagerIPs.add(s);
+            this.cacheMessageList.add(new LinkedList<>());
+        }
     }
 
     /***************************************************************************
@@ -61,8 +99,17 @@ public class MessageBus {
      * Exceptions: Participant not registered, Send message exception
      *
      ****************************************************************************/
-    public void SendMessage(Message evt) throws Exception {
+    synchronized public void SendMessage(Message evt) throws Exception {
+        defender();
 
+        for (int i = mainChannelIndex; i < mmiList.size(); i++) {
+            if(!livingChannels[i]) continue;
+            try {
+                mmiList.get(i).SendMessage(evt);
+            } catch (Exception e) {
+                failSafe();
+            }
+        }
     }
 
     /***************************************************************************
@@ -81,7 +128,29 @@ public class MessageBus {
      *
      ****************************************************************************/
     public void UnRegister(long id) throws Exception {
+        defender();
 
+        mmiList.get(mainChannelIndex).UnRegister(id);
+    }
+
+    /***************************************************************************
+     * CONCRETE METHOD:: UnRegister
+     * Purpose: This is the special version of UnRegister(long id) which unregister
+     * the caller itself from all message channels
+     *
+     * Arguments: None
+     *
+     * Returns: None.
+     *
+     * Exceptions: Participant not registered, unregister exception
+     *
+     ****************************************************************************/
+    public void UnRegister() throws Exception {
+        defender();
+
+        for (int i = mainChannelIndex; i < mmiList.size(); i++) {
+            mmiList.get(i).UnRegister();
+        }
     }
 
 
@@ -97,7 +166,9 @@ public class MessageBus {
      *
      ****************************************************************************/
     public long GetMyId() throws Exception {
-        return 1l;
+        defender();
+
+        return mmiList.get(mainChannelIndex).GetMyId();
     }
 
     /***************************************************************************
@@ -119,11 +190,15 @@ public class MessageBus {
      *
      ****************************************************************************/
     public String GetRegistrationTime() throws Exception {
-        return null;
+        defender();
+
+        return mmiList.get(mainChannelIndex).GetRegistrationTime();
     }
 
     /***************************************************************************
      * Purpose: This method allows participants to get current available messages in a List
+     * This method also pull messages from standby message channels and cache certain amount
+     * of messages for each message channel.
      *
      * Arguments: None.
      *
@@ -133,7 +208,44 @@ public class MessageBus {
      *
      ****************************************************************************/
     public List<Message> getAvailableMessages() throws Exception {
-        return null;
+        defender();
+
+        List<Message> result = new LinkedList<>();
+
+        MessageQueue mq = mmiList.get(mainChannelIndex).GetMessageQueue();
+
+        if (cacheMessageList.get(mainChannelIndex).size() != 0) {
+            result.addAll(cacheMessageList.get(mainChannelIndex));
+            cacheMessageList.get(mainChannelIndex).clear();
+        }
+        for (int i = 0; i < mq.GetSize(); i++) {
+            result.add(mq.GetMessage());
+        }
+
+        pullStandByMessages();
+
+        return result;
+    }
+
+    private void pullStandByMessages() {
+
+        for (int i = mainChannelIndex + 1; i < mmiList.size(); i++) {
+            if (!livingChannels[i]) continue;
+
+            MessageQueue mq;
+            try {
+                mq = mmiList.get(i).GetMessageQueue();
+            } catch (Exception e) {
+                failSafe(i);
+                continue;
+            }
+
+            for (int j = 0; j < mq.GetSize(); j++) {
+                List<Message> cmList = cacheMessageList.get(i);
+                cmList.add(mq.GetMessage());
+                if (cmList.size() > MAX_CACHE_MESSAGE_COUNT) cmList.remove(0);
+            }
+        }
     }
 
     /***************************************************************************
@@ -146,8 +258,44 @@ public class MessageBus {
      * Exceptions: None.
      *
      ****************************************************************************/
-    public void registerForMessageManagerFailureEvent(Consumer<String> callback) {
-
+    public void registerForMessageManagerFailureEvent(BiConsumer<String, Boolean> callback) {
+        messageManagerFailureCallbacks.add(callback);
     }
 
+    /**
+     * Fail safe method
+     * When one of the channels fails, calling this method will:
+     * 1. switch the main channel to a backup if the main channel fails
+     * 2. notify failure event to observers
+     */
+    private void failSafe(int channelIndex) {
+        if (channelIndex >= mmiList.size() || !livingChannels[channelIndex]) return;
+
+        String IP = messageManagerIPs.get(channelIndex);
+        livingChannels[channelIndex] = false;
+
+        boolean foundBackup = false;
+        for (int i = 0; i < mmiList.size(); i++) {
+            if (livingChannels[i]) {
+                foundBackup = true;
+                mainChannelIndex = i;
+                break;
+            }
+        }
+
+        boolean finalFoundBackup = foundBackup;
+        messageManagerFailureCallbacks.forEach(o -> o.accept(IP, !finalFoundBackup));
+    }
+
+    private void failSafe() {
+        failSafe(mainChannelIndex);
+    }
+
+    private void defender() throws Exception {
+        if (mainChannelIndex >= mmiList.size()) throw new Exception("message bus is down!");
+    }
+
+    private boolean validateIPAddress(String ip) {
+        return Pattern.compile("^(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])$").matcher(ip).matches();
+    }
 }
