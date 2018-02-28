@@ -211,14 +211,23 @@ public class MessageBus {
 
         List<Message> result = new LinkedList<>();
 
-        MessageQueue mq = mmiList.get(mainChannelIndex).GetMessageQueue();
+        MessageQueue mq = null;
+        try {
+            mq = mmiList.get(mainChannelIndex).GetMessageQueue();
+        }catch (Exception e) {
+            failSafe();
+        }
 
         if (cacheMessageList.get(mainChannelIndex).size() != 0) {
             result.addAll(cacheMessageList.get(mainChannelIndex));
             cacheMessageList.get(mainChannelIndex).clear();
         }
-        for (int i = 0; i < mq.GetSize(); i++) {
-            result.add(mq.GetMessage());
+
+        if(mq != null) {
+            int size = mq.GetSize();
+            for (int i = 0; i < size; i++) {
+                result.add(mq.GetMessage());
+            }
         }
 
         pullStandByMessages();
@@ -239,8 +248,9 @@ public class MessageBus {
                 continue;
             }
 
-            for (int j = 0; j < mq.GetSize(); j++) {
-                List<Message> cmList = cacheMessageList.get(i);
+            int size = mq.GetSize();
+            List<Message> cmList = cacheMessageList.get(i);
+            for (int j = 0; j < size; j++) {
                 cmList.add(mq.GetMessage());
                 if (cmList.size() > MAX_CACHE_MESSAGE_COUNT) cmList.remove(0);
             }

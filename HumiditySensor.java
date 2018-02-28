@@ -32,9 +32,9 @@ class HumiditySensor {
     public static void main(String args[]) {
         String MsgMgrIP;                    // Message Manager IP address
         Message Msg = null;                    // Message object
-        MessageQueue eq = null;                // Message Queue
+        List<Message> eq = null;                // Message Queue
         int MsgId = 0;                        // User specified message ID
-        MessageManagerInterface em = null;    // Interface object to the message manager
+        MessageBus em = MessageBus.getInstance();    // Fault tolerant message bus
         boolean HumidifierState = false;    // Humidifier state: false == off, true == on
         boolean DehumidifierState = false;    // Dehumidifier state: false == off, true == on
         float RelativeHumidity;                // Current simulated ambient room humidity
@@ -48,39 +48,19 @@ class HumiditySensor {
         /////////////////////////////////////////////////////////////////////////////////
 
         if (args.length == 0) {
-            // message manager is on the local system
-
-            System.out.println("\n\nAttempting to register on the local machine...");
-
-            try {
-                // Here we create an message manager interface object. This assumes
-                // that the message manager is on the local machine
-
-                em = new MessageManagerInterface();
-            } catch (Exception e) {
-                System.out.println("Error instantiating message manager interface: " + e);
-
-            } // catch
-
+            System.out.println("\n\nNeed at least one IP address");
+            return;
         } else {
-
-            // message manager is not on the local system
-
-            MsgMgrIP = args[0];
-
-            System.out.println("\n\nAttempting to register on the machine:: " + MsgMgrIP);
+            Arrays.stream(args).forEach(o -> System.out.println("\n\nAttempting to register on the machine:: " + o));
 
             try {
-                // Here we create an message manager interface object. This assumes
-                // that the message manager is NOT on the local machine
-
-                em = new MessageManagerInterface(MsgMgrIP);
+                em.init(args);
             } catch (Exception e) {
+                System.out.println("Unable to register with the message manager.\n\n");
                 System.out.println("Error instantiating message manager interface: " + e);
-
-            } // catch
-
-        } // if
+                return;
+            }
+        }
 
         // Here we check to see if registration worked. If ef is null then the
         // message manager interface was not properly created.
@@ -154,7 +134,7 @@ class HumiditySensor {
                 // Get the message queue
 
                 try {
-                    eq = em.GetMessageQueue();
+                    eq = em.getAvailableMessages();
 
                 } // try
 
@@ -171,10 +151,10 @@ class HumiditySensor {
                 // If there are more, it is the last message that will effect the
                 // output of the humidity as it would in reality.
 
-                int qlen = eq.GetSize();
+                int qlen = eq.size();
 
                 for (int i = 0; i < qlen; i++) {
-                    Msg = eq.GetMessage();
+                    Msg = eq.get(i);
 
                     if (Msg.GetMessageId() == -4) {
                         if (Msg.GetMessage().equalsIgnoreCase("H1")) // humidifier on
@@ -329,7 +309,7 @@ class HumiditySensor {
      *
      ***************************************************************************/
 
-    static private void PostHumidity(MessageManagerInterface ei, float humidity) {
+    static private void PostHumidity(MessageBus ei, float humidity) {
         // Here we create the message.
 
         Message msg = new Message((int) 2, String.valueOf(humidity));

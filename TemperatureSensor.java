@@ -31,9 +31,9 @@ class TemperatureSensor
 	{
 		String MsgMgrIP;				// Message Manager IP address
 		Message Msg = null;				// Message object
-		MessageQueue eq = null;			// Message Queue
+		List<Message> eq = null;			// Message Queue
 		int MsgId = 0;					// User specified message ID
-		MessageManagerInterface em = null;// Interface object to the message manager
+		MessageBus em = MessageBus.getInstance();// Interface object to the message manager
 		boolean HeaterState = false;	// Heater state: false == off, true == on
 		boolean ChillerState = false;	// Chiller state: false == off, true == on
 		float CurrentTemperature;		// Current simulated ambient room temperature
@@ -46,49 +46,20 @@ class TemperatureSensor
 		// Get the IP address of the message manager
 		/////////////////////////////////////////////////////////////////////////////////
 
- 		if ( args.length == 0 )
- 		{
-			// message manager is on the local system
-
-			System.out.println("\n\nAttempting to register on the local machine..." );
-
-			try
-			{
-				// Here we create an message manager interface object. This assumes
-				// that the message manager is on the local machine
-
-				em = new MessageManagerInterface();
-			}
-
-			catch (Exception e)
-			{
-				System.out.println("Error instantiating message manager interface: " + e);
-
-			} // catch
-
+		if (args.length == 0) {
+			System.out.println("\n\nNeed at least one IP address");
+			return;
 		} else {
+			Arrays.stream(args).forEach(o -> System.out.println("\n\nAttempting to register on the machine:: " + o));
 
-			// message manager is not on the local system
-
-			MsgMgrIP = args[0];
-
-			System.out.println("\n\nAttempting to register on the machine:: " + MsgMgrIP );
-
-			try
-			{
-				// Here we create an message manager interface object. This assumes
-				// that the message manager is NOT on the local machine
-
-				em = new MessageManagerInterface( MsgMgrIP );
-			}
-
-			catch (Exception e)
-			{
+			try {
+				em.init(args);
+			} catch (Exception e) {
+				System.out.println("Unable to register with the message manager.\n\n");
 				System.out.println("Error instantiating message manager interface: " + e);
-
-			} // catch
-
-		} // if
+				return;
+			}
+		}
 
 		// Here we check to see if registration worked. If ef is null then the
 		// message manager interface was not properly created.
@@ -169,7 +140,7 @@ class TemperatureSensor
 
 				try
 				{
-					eq = em.GetMessageQueue();
+					eq = em.getAvailableMessages();
 
 				} // try
 
@@ -187,11 +158,11 @@ class TemperatureSensor
 				// If there are more, it is the last message that will effect the
 				// output of the temperature as it would in reality.
 
-				int qlen = eq.GetSize();
+				int qlen = eq.size();
 
 				for ( int i = 0; i < qlen; i++ )
 				{
-					Msg = eq.GetMessage();
+					Msg = eq.get(i);
 
 					if ( Msg.GetMessageId() == -5 )
 					{
@@ -358,7 +329,7 @@ class TemperatureSensor
 	*
 	***************************************************************************/
 
-	static private void PostTemperature(MessageManagerInterface ei, float temperature )
+	static private void PostTemperature(MessageBus ei, float temperature )
 	{
 		// Here we create the message.
 

@@ -31,16 +31,8 @@ public class MonitorManager {
         messageManagerReadyCallbacks = new ArrayList<>();
         messageManagerFailureCallbacks = new ArrayList<>();
 
-        participantMap = new HashMap<>();
-        participantReadyEventFlag = new HashMap<>();
-        participantMap.put(ParticipantType.HUMIDITY_CONTROLLER, new HashSet<>());
-        participantReadyEventFlag.put(ParticipantType.HUMIDITY_CONTROLLER, false);
-        participantMap.put(ParticipantType.HUMIDITY_SENSOR, new HashSet<>());
-        participantReadyEventFlag.put(ParticipantType.HUMIDITY_SENSOR, false);
-        participantMap.put(ParticipantType.TEMPERATURE_CONTROLLER, new HashSet<>());
-        participantReadyEventFlag.put(ParticipantType.TEMPERATURE_CONTROLLER, false);
-        participantMap.put(ParticipantType.TEMPERATURE_SENSOR, new HashSet<>());
-        participantReadyEventFlag.put(ParticipantType.TEMPERATURE_SENSOR, false);
+        initializeParticipantData();
+        initialzeParticipantReadyEventData();
 
         participantLastHeartBeatMap = new HashMap<>();
         mainParticipantMap = new HashMap<>();
@@ -227,14 +219,14 @@ public class MonitorManager {
                         // unregister from message channel
                         mb.UnRegister(id);
 
+                        // switch main participant
+                        if (mainParticipantMap.get(type) == id && set.size() > 1) {
+                            mainParticipantMap.put(type, setArray[(i + 1) % setArray.length]);
+                        }
+
                         // clear from local variables
                         participantLastHeartBeatMap.remove(id);
                         set.remove(id);
-
-                        // switch main participant
-                        if (mainParticipantMap.get(type) == id && i < setArray.length - 1) {
-                            mainParticipantMap.put(type, setArray[i + 1]);
-                        }
                     }
                 }
             }
@@ -256,6 +248,7 @@ public class MonitorManager {
     private void messageManagerFailed(String IP, Boolean allFailed) {
         // reset
         participantMap.clear();
+        initializeParticipantData();
         mainParticipantMap.clear();
         participantLastHeartBeatMap.clear();
 
@@ -272,6 +265,24 @@ public class MonitorManager {
             }
         }
         return false;
+    }
+
+    private void initializeParticipantData() {
+        participantMap = new HashMap<>();
+
+        participantMap.put(ParticipantType.HUMIDITY_CONTROLLER, new HashSet<>());
+        participantMap.put(ParticipantType.HUMIDITY_SENSOR, new HashSet<>());
+        participantMap.put(ParticipantType.TEMPERATURE_CONTROLLER, new HashSet<>());
+        participantMap.put(ParticipantType.TEMPERATURE_SENSOR, new HashSet<>());
+    }
+
+    private void initialzeParticipantReadyEventData() {
+        participantReadyEventFlag = new HashMap<>();
+
+        participantReadyEventFlag.put(ParticipantType.HUMIDITY_CONTROLLER, false);
+        participantReadyEventFlag.put(ParticipantType.HUMIDITY_SENSOR, false);
+        participantReadyEventFlag.put(ParticipantType.TEMPERATURE_CONTROLLER, false);
+        participantReadyEventFlag.put(ParticipantType.TEMPERATURE_SENSOR, false);
     }
 
 }

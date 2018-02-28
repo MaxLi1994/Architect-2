@@ -67,7 +67,7 @@ class HumidityController {
         }
 
 
-        System.out.println("Registered with the message manager.");
+//        System.out.println("Registered with the message manager.");
 
         /********************************************************************
          ** Here we set up the fault tolerant participant
@@ -121,6 +121,7 @@ class HumidityController {
             } // try
 
             catch (Exception e) {
+                e.printStackTrace();
                 mw.WriteMessage("Error getting message queue::" + e);
 
             } // catch
