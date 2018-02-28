@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  */
 public class MessageBus {
     private static MessageBus instance = null;
-    private static final int MAX_CACHE_MESSAGE_COUNT = 50;
+    private static final int MAX_CACHE_MESSAGE_COUNT = 1000;
     private static final String LOCAL_HOST = "localhost";
 
     private List<String> messageManagerIPs;
